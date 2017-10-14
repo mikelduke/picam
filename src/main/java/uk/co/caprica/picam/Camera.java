@@ -19,19 +19,6 @@
 
 package uk.co.caprica.picam;
 
-import com.sun.jna.Pointer;
-import com.sun.jna.ptr.PointerByReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import uk.co.caprica.picam.bindings.internal.MMAL_BUFFER_HEADER_T;
-import uk.co.caprica.picam.bindings.internal.MMAL_COMPONENT_T;
-import uk.co.caprica.picam.bindings.internal.MMAL_PARAMETER_CAMERA_CONFIG_T;
-import uk.co.caprica.picam.bindings.internal.MMAL_POOL_T;
-import uk.co.caprica.picam.bindings.internal.MMAL_PORT_T;
-import uk.co.caprica.picam.bindings.internal.MMAL_VIDEO_FORMAT_T;
-
-import java.util.concurrent.CountDownLatch;
-
 import static uk.co.caprica.picam.AlignUtils.alignUp;
 import static uk.co.caprica.picam.CameraParameterUtils.setAutomaticWhiteBalanceMode;
 import static uk.co.caprica.picam.CameraParameterUtils.setBrightness;
@@ -56,7 +43,6 @@ import static uk.co.caprica.picam.MmalParameterUtils.mmal_port_parameter_set_uin
 import static uk.co.caprica.picam.MmalUtils.connectPorts;
 import static uk.co.caprica.picam.MmalUtils.createComponent;
 import static uk.co.caprica.picam.MmalUtils.destroyComponent;
-import static uk.co.caprica.picam.MmalUtils.destroyConnection;
 import static uk.co.caprica.picam.MmalUtils.disableComponent;
 import static uk.co.caprica.picam.MmalUtils.disablePort;
 import static uk.co.caprica.picam.MmalUtils.enableComponent;
@@ -69,6 +55,23 @@ import static uk.co.caprica.picam.bindings.MmalParameters.MMAL_PARAMETER_CAPTURE
 import static uk.co.caprica.picam.bindings.internal.MMAL_PARAMETER_CAMERA_CONFIG_TIMESTAMP_MODE_T.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC;
 import static uk.co.caprica.picam.bindings.internal.MMAL_STATUS_T.MMAL_SUCCESS;
 import static uk.co.caprica.picam.enums.Encoding.OPAQUE;
+
+import java.util.concurrent.CountDownLatch;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sun.jna.CallbackThreadInitializer;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.PointerByReference;
+
+import uk.co.caprica.picam.bindings.internal.MMAL_BUFFER_HEADER_T;
+import uk.co.caprica.picam.bindings.internal.MMAL_COMPONENT_T;
+import uk.co.caprica.picam.bindings.internal.MMAL_PARAMETER_CAMERA_CONFIG_T;
+import uk.co.caprica.picam.bindings.internal.MMAL_POOL_T;
+import uk.co.caprica.picam.bindings.internal.MMAL_PORT_T;
+import uk.co.caprica.picam.bindings.internal.MMAL_VIDEO_FORMAT_T;
 
 public final class Camera implements AutoCloseable {
 
@@ -103,6 +106,8 @@ public final class Camera implements AutoCloseable {
     private MMAL_PORT_T cameraCapturePort;
 
     private Pointer cameraEncoderConnection;
+    
+    private final CallbackThreadInitializer callbackThreadInitializer = new CallbackThreadInitializer(true, false, "MMALCallback"); // in Camera
 
     public Camera(CameraConfiguration configuration) {
         logger.debug("Camera(configuration={})", configuration);
@@ -123,7 +128,7 @@ public final class Camera implements AutoCloseable {
         CountDownLatch captureFinishedLatch = new CountDownLatch(1);
 
         EncoderBufferCallback encoderBufferCallback = new EncoderBufferCallback(pictureCaptureHandler, captureFinishedLatch, picturePool);
-
+        Native.setCallbackThreadInitializer(encoderBufferCallback, callbackThreadInitializer); // in takePicture
         try {
             logger.info("Waiting to capture...");
 
@@ -166,6 +171,7 @@ public final class Camera implements AutoCloseable {
             }
 
             disableEncoderOutputPort();
+            callbackThreadInitializer.detach(encoderBufferCallback); // in takePicture
             encoderBufferCallback = null;
         }
 
@@ -189,7 +195,7 @@ public final class Camera implements AutoCloseable {
         disableComponent(encoderComponent);
         disableComponent(cameraComponent);
 
-        mmalUtil.mmal_port_pool_destroy(encoderOutputPort, picturePool);
+        mmalUtil.mmal_port_pool_destroy(encoderOutputPort.getPointer(), picturePool.getPointer());
 
         destroyComponent(encoderComponent);
         destroyComponent(cameraComponent);
@@ -365,7 +371,7 @@ public final class Camera implements AutoCloseable {
                 throw new RuntimeException(String.format("Failed to get buffer %d from queue", i));
             }
 
-            int result = mmal.mmal_port_send_buffer(encoderOutputPort, buffer);
+            int result = mmal.mmal_port_send_buffer(encoderOutputPort.getPointer(), buffer.getPointer());
             logger.debug("result={}", result);
 
             if (result != MMAL_SUCCESS) {

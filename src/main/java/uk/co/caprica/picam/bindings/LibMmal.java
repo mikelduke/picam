@@ -24,12 +24,13 @@ import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
+
 import uk.co.caprica.picam.bindings.internal.MMAL_BUFFER_HEADER_T;
 import uk.co.caprica.picam.bindings.internal.MMAL_COMPONENT_T;
 import uk.co.caprica.picam.bindings.internal.MMAL_ES_FORMAT_T;
+import uk.co.caprica.picam.bindings.internal.MMAL_PARAMETER_HEADER_T;
 import uk.co.caprica.picam.bindings.internal.MMAL_PORT_BH_CB_T;
 import uk.co.caprica.picam.bindings.internal.MMAL_PORT_T;
-import uk.co.caprica.picam.bindings.internal.MMAL_PARAMETER_HEADER_T;
 
 public interface LibMmal extends Library {
 
@@ -41,11 +42,11 @@ public interface LibMmal extends Library {
 
     int mmal_component_create(String name, PointerByReference component);
 
-    int mmal_component_destroy(MMAL_COMPONENT_T component);
+    int mmal_component_destroy(Pointer component);
 
     int mmal_component_enable(MMAL_COMPONENT_T component);
 
-    int mmal_component_disable(MMAL_COMPONENT_T component);
+    int mmal_component_disable(Pointer component);
 
     int mmal_port_parameter_set(MMAL_PORT_T port, MMAL_PARAMETER_HEADER_T param);
 
@@ -63,11 +64,11 @@ public interface LibMmal extends Library {
 
     MMAL_BUFFER_HEADER_T mmal_queue_get(PointerByReference queue);
 
-    int mmal_port_send_buffer(MMAL_PORT_T port, MMAL_BUFFER_HEADER_T buffer);
+    int mmal_port_send_buffer(Pointer portPointer, Pointer buffer);
 
-    int mmal_buffer_header_mem_lock(MMAL_BUFFER_HEADER_T header);
+    int mmal_buffer_header_mem_lock(Pointer header);
 
-    void mmal_buffer_header_mem_unlock(MMAL_BUFFER_HEADER_T header);
+    void mmal_buffer_header_mem_unlock(Pointer header);
 
-    void mmal_buffer_header_release(MMAL_BUFFER_HEADER_T header);
+    void mmal_buffer_header_release(Pointer header);
 }

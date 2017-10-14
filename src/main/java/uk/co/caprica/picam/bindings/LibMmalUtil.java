@@ -37,7 +37,7 @@ public interface LibMmalUtil extends Library {
 
 	MMAL_POOL_T mmal_port_pool_create(MMAL_PORT_T port, int headers, int payload_size);
 
-	void mmal_port_pool_destroy(MMAL_PORT_T port, MMAL_POOL_T pool);
+	void mmal_port_pool_destroy(Pointer port, Pointer pool);
 
 	int mmal_connection_create(PointerByReference connection, MMAL_PORT_T out, MMAL_PORT_T in, int flags);
 

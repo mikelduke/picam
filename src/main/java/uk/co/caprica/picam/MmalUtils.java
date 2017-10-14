@@ -77,7 +77,7 @@ final class MmalUtils {
 
         if (component != null) {
             logger.debug("component.name={}", component.name);
-            int result = mmal.mmal_component_disable(component);
+            int result = mmal.mmal_component_disable(component.getPointer());
             logger.debug("result={}", result);
         }
     }
@@ -87,7 +87,7 @@ final class MmalUtils {
 
         if (component != null) {
             logger.debug("component.name={}", component.name);
-            int result = mmal.mmal_component_destroy(component);
+            int result = mmal.mmal_component_destroy(component.getPointer());
             logger.debug("result={}", result);
         }
     }
